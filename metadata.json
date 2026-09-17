@@ -1,0 +1,6 @@
+{
+  "name": "IPO360",
+  "description": "Understand the IPO. Analyze the Numbers. Decide for Yourself. Professional financial data, valuation, risk analysis, and transparent scoring platform for IPOs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,170 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  analyses      IPOAnalysis[]
+  savedReports  SavedReport[]
+
+  @@map("users")
+}
+
+model Company {
+  id              String          @id @default(cuid())
+  name            String
+  sector          String
+  industry        String?
+  website         String?
+  drhpUrl         String?
+  createdAt       DateTime        @default(now())
+  ipos            IPO[]
+  financialYears  FinancialYear[]
+  peers           PeerCompany[]
+
+  @@map("companies")
+}
+
+model IPO {
+  id               String          @id @default(cuid())
+  companyId        String
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  priceBandMin     Decimal?        @db.Decimal(12, 2)
+  priceBandMax     Decimal?        @db.Decimal(12, 2)
+  issuePrice       Decimal?        @db.Decimal(12, 2)
+  issueSize        Decimal?        @db.Decimal(14, 2) // in Crores
+  freshIssue       Decimal?        @db.Decimal(14, 2)
+  offerForSale     Decimal?        @db.Decimal(14, 2)
+  listingExchange  String?         @default("NSE & BSE")
+  openDate         DateTime?
+  closeDate        DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  
+  valuationMetrics ValuationMetric?
+  riskFactors      RiskFactor[]
+  analyses         IPOAnalysis[]
+
+  @@map("ipos")
+}
+
+model FinancialYear {
+  id                 String    @id @default(cuid())
+  companyId          String
+  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fiscalYear         String    // e.g. "FY2024"
+  revenue            Decimal   @db.Decimal(14, 2)
+  ebitda             Decimal   @db.Decimal(14, 2)
+  ebit               Decimal   @db.Decimal(14, 2)
+  pat                Decimal   @db.Decimal(14, 2)
+  eps                Decimal   @db.Decimal(10, 2)
+  operatingCashFlow  Decimal   @db.Decimal(14, 2)
+  freeCashFlow       Decimal?  @db.Decimal(14, 2)
+  totalDebt          Decimal   @db.Decimal(14, 2)
+  netWorth           Decimal   @db.Decimal(14, 2)
+  totalAssets        Decimal   @db.Decimal(14, 2)
+  currentAssets      Decimal?  @db.Decimal(14, 2)
+  currentLiabilities Decimal?  @db.Decimal(14, 2)
+  interestExpense    Decimal?  @db.Decimal(12, 2)
+  roe                Decimal?  @db.Decimal(6, 2)
+  roce               Decimal?  @db.Decimal(6, 2)
+  createdAt          DateTime  @default(now())
+
+  @@unique([companyId, fiscalYear])
+  @@map("financial_years")
+}
+
+model PeerCompany {
+  id             String    @id @default(cuid())
+  targetCompanyId String
+  targetCompany  Company   @relation(fields: [targetCompanyId], references: [id], onDelete: Cascade)
+  peerName       String
+  pe             Decimal?  @db.Decimal(10, 2)
+  pb             Decimal?  @db.Decimal(10, 2)
+  evEbitda       Decimal?  @db.Decimal(10, 2)
+  revenueGrowth  Decimal?  @db.Decimal(6, 2)
+  patMargin      Decimal?  @db.Decimal(6, 2)
+  roe            Decimal?  @db.Decimal(6, 2)
+  roce           Decimal?  @db.Decimal(6, 2)
+  createdAt      DateTime  @default(now())
+
+  @@map("peer_companies")
+}
+
+model ValuationMetric {
+  id                 String    @id @default(cuid())
+  ipoId              String    @unique
+  ipo                IPO       @relation(fields: [ipoId], references: [id], onDelete: Cascade)
+  eps                Decimal   @db.Decimal(10, 2)
+  bookValuePerShare  Decimal   @db.Decimal(10, 2)
+  enterpriseValue    Decimal?  @db.Decimal(14, 2)
+  peRatio            Decimal?  @db.Decimal(10, 2)
+  pbRatio            Decimal?  @db.Decimal(10, 2)
+  evEbitdaRatio      Decimal?  @db.Decimal(10, 2)
+  createdAt          DateTime  @default(now())
+
+  @@map("valuation_metrics")
+}
+
+model RiskFactor {
+  id          String   @id @default(cuid())
+  ipoId       String
+  ipo         IPO      @relation(fields: [ipoId], references: [id], onDelete: Cascade)
+  category    String
+  factorKey   String
+  response    String   // "yes", "no", "unknown"
+  severity    String?  // "low", "moderate", "high"
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@map("risk_factors")
+}
+
+model IPOAnalysis {
+  id                String       @id @default(cuid())
+  userId            String?
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ipoId             String
+  ipo               IPO          @relation(fields: [ipoId], references: [id], onDelete: Cascade)
+  overallScore      Int          // 0 - 100
+  growthScore       Int
+  profitabilityScore Int
+  cashFlowScore     Int
+  healthScore       Int
+  roeRoceScore      Int
+  valuationScore    Int
+  qualityScore      Int
+  structureScore    Int
+  riskScore         Int
+  riskLevel         String       // "Low", "Moderate", "Elevated", "High"
+  dataCompleteness  Int          // 0 - 100 %
+  rawCalculation    Json         // Detailed breakdown, formulas, benchmarks
+  createdAt         DateTime     @default(now())
+  savedReports      SavedReport[]
+
+  @@map("ipo_analyses")
+}
+
+model SavedReport {
+  id          String       @id @default(cuid())
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  analysisId  String
+  analysis    IPOAnalysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  title       String
+  notes       String?
+  isPublic    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("saved_reports")
+}
